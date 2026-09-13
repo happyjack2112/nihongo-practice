@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { anthropic, MODEL, CATEGORIZE_SYSTEM_PROMPT } from "@/lib/anthropic";
+import { categorizeWithGemini } from "@/lib/gemini";
 
 // POST /api/categorize — body: { uploadId: string }
-// Mengambil raw_text hasil ekstraksi, kirim ke Claude untuk dikelompokkan
-// jadi kotoba/kanji/grammar/reading, lalu simpan sebagai extracted_items
-// dengan is_verified = false (menunggu verifikasi manual pengguna,
-// SESUAI aturan #17 di spesifikasi awal: jangan langsung generate soal).
+// Mengambil raw_text hasil ekstraksi, kirim ke Gemini (gratis, tanpa
+// kartu kredit) untuk dikelompokkan jadi kotoba/kanji/grammar/reading,
+// lalu simpan sebagai extracted_items dengan is_verified = false
+// (menunggu verifikasi manual pengguna, SESUAI aturan #17 di
+// spesifikasi awal: jangan langsung generate soal).
 export async function POST(req: NextRequest) {
   const supabase = createClient();
   const {
@@ -28,18 +29,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const response = await anthropic.messages.create({
-      model: MODEL,
-      max_tokens: 4096,
-      system: CATEGORIZE_SYSTEM_PROMPT,
-      messages: [{ role: "user", content: upload.raw_text }],
-    });
-
-    const textBlock = response.content.find((b) => b.type === "text");
-    if (!textBlock || textBlock.type !== "text") throw new Error("Respons AI tidak berisi teks");
-
-    const items = JSON.parse(textBlock.text.trim());
-    if (!Array.isArray(items)) throw new Error("Format respons AI tidak sesuai (bukan array)");
+    const items = await categorizeWithGemini(upload.raw_text);
 
     const rows = items.map((it: any) => {
       const { category, confidence, ...data } = it;

@@ -7,9 +7,11 @@ Kerangka backend nyata untuk melanjutkan prototipe React
 
 - **Next.js** (App Router, TypeScript) — frontend + API routes
 - **Supabase** — database Postgres, auth, dan storage file PDF
-- **API Claude (Anthropic)** — kategorisasi materi & generate soal
+- **Google Gemini API** — kategorisasi materi (GRATIS, tanpa kartu kredit —
+  lihat `lib/gemini.ts`; API Claude/Anthropic masih tersedia sebagai opsi
+  berbayar di `lib/anthropic.ts` kalau nanti ingin kualitas lebih tinggi)
 - **pdf-parse** — ekstraksi teks PDF native
-- **OCR** (opsional, perlu disambungkan) — untuk PDF hasil scan
+- **OCR** (Google Cloud Vision, opsional & berbayar) — untuk PDF hasil scan
 
 ## Setup
 
@@ -22,25 +24,39 @@ Kerangka backend nyata untuk melanjutkan prototipe React
    - Buka Authentication → URL Configuration, tambahkan
      `http://localhost:3000/auth/callback` ke Redirect URLs (untuk
      konfirmasi email saat development)
-   - Salin URL dan API key dari Project Settings → API
+   - Salin URL dan API key dari Project Settings → API (pakai yang
+     "Legacy anon, service_role API keys" — bukan format baru
+     publishable/secret — supaya kompatibel dengan versi `@supabase/supabase-js`
+     di proyek ini)
 
-2. **Salin `.env.example` jadi `.env.local`** dan isi:
+2. **Buat API key Gemini gratis (wajib untuk kategorisasi materi):**
+   - Buka [aistudio.google.com/apikey](https://aistudio.google.com/apikey)
+   - Login dengan akun Google, klik "Create API key"
+   - Tidak perlu kartu kredit maupun isi saldo apapun
+   - Ada batas rate limit harian (lihat komentar di `lib/gemini.ts`), tapi
+     jauh lebih dari cukup untuk pemakaian pribadi
+
+3. **Salin `.env.example` jadi `.env.local`** dan isi:
    ```
    NEXT_PUBLIC_SUPABASE_URL=...
    NEXT_PUBLIC_SUPABASE_ANON_KEY=...
    SUPABASE_SERVICE_ROLE_KEY=...
-   ANTHROPIC_API_KEY=...
+   GOOGLE_GEMINI_API_KEY=...
    ```
+   (`ANTHROPIC_API_KEY` boleh dikosongkan — tidak dipakai kecuali kamu
+   sengaja beralih balik ke Claude, lihat `lib/anthropic.ts`)
 
-3. **(Opsional, untuk OCR PDF hasil scan) Aktifkan Google Cloud Vision API:**
+4. **(Opsional, untuk OCR PDF hasil scan) Aktifkan Google Cloud Vision API:**
    - Buat project di [Google Cloud Console](https://console.cloud.google.com)
    - Aktifkan "Cloud Vision API"
    - Buat API key di Credentials, isi ke `GOOGLE_CLOUD_VISION_API_KEY`
    - Vision API berbayar setelah kuota gratis bulanan habis — cek
      [harga terbaru](https://cloud.google.com/vision/pricing) sebelum
-     dipakai untuk banyak PDF
+     dipakai untuk banyak PDF. Kalau tidak diisi, upload PDF hasil scan
+     akan gagal dengan pesan error yang jelas, tapi PDF teks biasa (bukan
+     hasil scan) tetap berfungsi normal tanpa ini.
 
-4. **Install dependency & jalankan:**
+5. **Install dependency & jalankan:**
    ```bash
    npm install
    npm run dev
@@ -76,7 +92,9 @@ components/
   Button.tsx, TopNav.tsx, SignOutButton.tsx
 lib/
   supabase/client.ts, server.ts   → klien Supabase (browser & server)
-  anthropic.ts                     → klien Claude + prompt
+  anthropic.ts                     → klien Claude (opsional, tidak dipakai default)
+  gemini.ts                        → klien Gemini (GRATIS) + kategorisasi materi
+  prompts.ts                       → prompt kategorisasi & generate soal (dipakai gemini.ts & anthropic.ts)
   questionBuilder.ts                → logic pembuatan soal (dipakai client-side)
   PracticeContext.tsx               → state soal & hasil dibagi antar halaman /practice/*
 middleware.ts                      → refresh sesi Supabase Auth tiap request
@@ -144,7 +162,8 @@ Perlu Diulang → GET /api/review, PATCH /api/review untuk "sudah paham",
   jalankan di container/VM biasa alih-alih serverless murni.
 - **Vision API berbayar** setelah kuota gratis bulanan habis — untuk
   PDF dalam jumlah banyak, ini bisa jadi biaya berulang yang perlu
-  dipantau (sama seperti API Claude untuk kategorisasi).
+  dipantau. (Kategorisasi materi via Gemini tetap gratis — hanya OCR
+  untuk PDF hasil scan yang berbayar.)
 
 ## Yang belum diimplementasikan (perlu keputusan/kerja tambahan)
 
