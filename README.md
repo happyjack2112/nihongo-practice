@@ -35,6 +35,11 @@ Kerangka backend nyata untuk melanjutkan prototipe React
    - Tidak perlu kartu kredit maupun isi saldo apapun
    - Ada batas rate limit harian (lihat komentar di `lib/gemini.ts`), tapi
      jauh lebih dari cukup untuk pemakaian pribadi
+   - **Catatan (September 2026):** Google baru mengganti format kunci
+     dari `AIza...` ke `AQ....` — kalau kunci kamu diawali `AQ.` itu
+     normal, bukan salah. Kode di `lib/gemini.ts` sudah disesuaikan untuk
+     format baru ini (dikirim lewat header `x-goog-api-key`, bukan query
+     param `?key=` seperti versi lama).
 
 3. **Salin `.env.example` jadi `.env.local`** dan isi:
    ```
