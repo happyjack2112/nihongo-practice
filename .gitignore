@@ -1,0 +1,19 @@
+# dependencies
+/node_modules
+
+# next.js build output
+/.next/
+/out/
+
+# environment variables — JANGAN pernah push file ini, berisi API key rahasia
+.env*.local
+.env
+
+# misc
+.DS_Store
+*.pem
+npm-debug.log*
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts

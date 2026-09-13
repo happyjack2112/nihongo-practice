@@ -1,0 +1,11 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url("https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Inter:wght@400;500;600&display=swap");
+
+body {
+  background-color: #faf7f0;
+  color: #2b2a26;
+  font-family: "Inter", sans-serif;
+}
