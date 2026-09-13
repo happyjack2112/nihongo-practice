@@ -1,13 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { runOcrOnPdf } from "@/lib/ocr";
 // @ts-ignore — pdf-parse tidak menyediakan tipe yang selalu akurat untuk ESM
 import pdfParse from "pdf-parse";
 
 // POST /api/extract — body: { uploadId: string }
 // Mengambil file PDF dari storage, mencoba ekstraksi teks native.
-// Jika hasilnya kosong/terlalu pendek (indikasi PDF hasil scan), lempar
-// ke OCR (lihat catatan di bawah).
+// CATATAN: OCR untuk PDF hasil scan (via pdf-img-convert + Google Vision)
+// sempat diimplementasikan tapi DIHAPUS karena pdf-img-convert bergantung
+// pada paket `canvas` (native binary) yang gagal di-build di Vercel
+// (error node-pre-gyp saat npm install). Untuk saat ini, PDF hasil scan
+// akan mendapat pesan error yang jelas alih-alih dicoba OCR. Alternatif
+// yang lebih serverless-friendly untuk dicoba nanti: Google Document AI
+// (menerima PDF langsung tanpa rasterisasi manual) atau @napi-rs/canvas
+// (canvas berbasis prebuilt binary, berpotensi lebih kompatibel).
 export async function POST(req: NextRequest) {
   const supabase = createClient();
   const {
@@ -39,40 +44,25 @@ export async function POST(req: NextRequest) {
     const buffer = Buffer.from(await fileBlob.arrayBuffer());
     const parsed = await pdfParse(buffer);
     let text = parsed.text.trim();
-    let ocrUsed = false;
+    const ocrUsed = false;
 
     // Heuristik sederhana: kalau teks yang berhasil diekstrak sangat sedikit
     // dibanding jumlah halaman, kemungkinan besar ini PDF hasil scan/gambar.
     const looksLikeScan = text.length < 50 * (parsed.numpages || 1);
 
     if (looksLikeScan) {
-      if (!process.env.GOOGLE_CLOUD_VISION_API_KEY) {
-        await supabase
-          .from("materials_upload")
-          .update({
-            status: "error",
-            error_message:
-              "PDF ini sepertinya hasil scan/gambar dan butuh OCR, tapi GOOGLE_CLOUD_VISION_API_KEY belum diatur.",
-          })
-          .eq("id", uploadId);
-        return NextResponse.json(
-          { error: "PDF butuh OCR, tapi layanan OCR belum dikonfigurasi." },
-          { status: 422 }
-        );
-      }
-      text = await runOcrOnPdf(buffer);
-      ocrUsed = true;
-
-      if (!text.trim()) {
-        await supabase
-          .from("materials_upload")
-          .update({
-            status: "error",
-            error_message: "OCR selesai tapi tidak menemukan teks yang bisa dibaca di PDF ini.",
-          })
-          .eq("id", uploadId);
-        return NextResponse.json({ error: "OCR tidak menemukan teks yang bisa dibaca." }, { status: 422 });
-      }
+      await supabase
+        .from("materials_upload")
+        .update({
+          status: "error",
+          error_message:
+            "PDF ini sepertinya hasil scan/gambar. OCR belum didukung saat ini — coba upload PDF dengan teks yang bisa diseleksi/copy langsung (bukan hasil scan).",
+        })
+        .eq("id", uploadId);
+      return NextResponse.json(
+        { error: "PDF ini sepertinya hasil scan/gambar dan belum bisa dibaca otomatis. Coba PDF dengan teks asli." },
+        { status: 422 }
+      );
     }
 
     await supabase

@@ -11,7 +11,7 @@ Kerangka backend nyata untuk melanjutkan prototipe React
   lihat `lib/gemini.ts`; API Claude/Anthropic masih tersedia sebagai opsi
   berbayar di `lib/anthropic.ts` kalau nanti ingin kualitas lebih tinggi)
 - **pdf-parse** — ekstraksi teks PDF native
-- **OCR** (Google Cloud Vision, opsional & berbayar) — untuk PDF hasil scan
+- ~~OCR (Google Cloud Vision)~~ — **dihapus**, lihat catatan di "Batasan"
 
 ## Setup
 
@@ -51,17 +51,7 @@ Kerangka backend nyata untuk melanjutkan prototipe React
    (`ANTHROPIC_API_KEY` boleh dikosongkan — tidak dipakai kecuali kamu
    sengaja beralih balik ke Claude, lihat `lib/anthropic.ts`)
 
-4. **(Opsional, untuk OCR PDF hasil scan) Aktifkan Google Cloud Vision API:**
-   - Buat project di [Google Cloud Console](https://console.cloud.google.com)
-   - Aktifkan "Cloud Vision API"
-   - Buat API key di Credentials, isi ke `GOOGLE_CLOUD_VISION_API_KEY`
-   - Vision API berbayar setelah kuota gratis bulanan habis — cek
-     [harga terbaru](https://cloud.google.com/vision/pricing) sebelum
-     dipakai untuk banyak PDF. Kalau tidak diisi, upload PDF hasil scan
-     akan gagal dengan pesan error yang jelas, tapi PDF teks biasa (bukan
-     hasil scan) tetap berfungsi normal tanpa ini.
-
-5. **Install dependency & jalankan:**
+4. **Install dependency & jalankan:**
    ```bash
    npm install
    npm run dev
@@ -128,8 +118,9 @@ Perlu Diulang → GET /api/review, PATCH /api/review untuk "sudah paham",
 ## Status pengerjaan
 
 - ✅ Auth (login/daftar, proteksi halaman, sign out)
-- ✅ Upload PDF nyata (native text via `pdf-parse`; fallback OCR via
-  Google Cloud Vision untuk PDF hasil scan — lihat `lib/ocr.ts`)
+- ✅ Upload PDF nyata (native text via `pdf-parse` — hanya untuk PDF
+  dengan teks asli, bukan hasil scan; lihat "Batasan" soal OCR)
+- ✅ Kategorisasi materi otomatis via Google Gemini API (GRATIS)
 - ✅ Verifikasi materi (edit/hapus/tambah untuk kotoba, kanji, grammar;
   reading hanya edit judul & teks, penambahan passage baru belum didukung
   di UI)
@@ -157,18 +148,18 @@ Perlu Diulang → GET /api/review, PATCH /api/review untuk "sudah paham",
   bisa terasa "meleset satu hari" dibanding jam lokalnya. Perbaikannya:
   simpan preferensi zona waktu per pengguna di `profiles`, lalu pakai itu
   di trigger `fn_update_streak_on_attempt` alih-alih UTC polos.
-- **OCR bergantung pada paket `canvas` (native binary)** lewat
-  `pdf-img-convert` untuk merasterisasi halaman PDF jadi gambar sebelum
-  dikirim ke Vision API. Ini biasanya beres di Vercel, tapi kalau kamu
-  deploy ke platform lain dan menemui error build/runtime terkait
-  `canvas`, itu tandanya platform tersebut tidak menyediakan native
-  dependency itu. Alternatif kalau ini jadi masalah: pindah ke Google
-  Document AI (menerima PDF langsung tanpa rasterisasi manual) atau
-  jalankan di container/VM biasa alih-alih serverless murni.
-- **Vision API berbayar** setelah kuota gratis bulanan habis — untuk
-  PDF dalam jumlah banyak, ini bisa jadi biaya berulang yang perlu
-  dipantau. (Kategorisasi materi via Gemini tetap gratis — hanya OCR
-  untuk PDF hasil scan yang berbayar.)
+- **OCR untuk PDF hasil scan SUDAH DICOBA lalu DIHAPUS**: implementasi
+  awal pakai `pdf-img-convert` untuk merasterisasi halaman PDF jadi
+  gambar sebelum dikirim ke Vision API, tapi paket itu bergantung pada
+  `canvas` (native binary) yang **gagal di-build di Vercel** (error
+  `node-pre-gyp` saat `npm install`). Sekarang PDF hasil scan/gambar
+  akan mendapat pesan error yang jelas saat upload, bukan dicoba OCR.
+  PDF dengan teks asli (bisa di-select/copy langsung) tetap berfungsi
+  normal via `pdf-parse`, gratis, tanpa masalah. Alternatif yang lebih
+  serverless-friendly untuk dicoba nanti kalau OCR penting: Google
+  Document AI (menerima PDF langsung tanpa rasterisasi manual di sisi
+  kita) atau `@napi-rs/canvas` (canvas berbasis prebuilt binary,
+  berpotensi lebih kompatibel dengan Vercel dibanding `canvas` biasa).
 
 ## Yang belum diimplementasikan (perlu keputusan/kerja tambahan)
 
